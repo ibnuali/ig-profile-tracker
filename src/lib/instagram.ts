@@ -25,14 +25,38 @@ function createAccount(username: string, details?: StringListData): InstagramAcc
   }
 }
 
+function toRelationshipItems(data: unknown): RelationshipItem[] {
+  if (Array.isArray(data)) {
+    return data
+  }
+
+  if (data && typeof data === "object") {
+    const record = data as Record<string, unknown>
+    const relationships = record.relationships_followers ?? record.relationships_following
+
+    if (Array.isArray(relationships)) {
+      return relationships
+    }
+
+    // A single relationship item exported as a bare object.
+    if (Array.isArray(record.string_list_data)) {
+      return [record as unknown as RelationshipItem]
+    }
+  }
+
+  return []
+}
+
 function parseFollowers(data: unknown) {
-  if (!Array.isArray(data)) {
+  const items = toRelationshipItems(data)
+
+  if (!Array.isArray(data) && items.length === 0) {
     throw new Error("followers_1.json has an unexpected format.")
   }
 
-  return data.flatMap((item) => {
-    const details = getFirstStringData(item as RelationshipItem)
-    const username = details?.value?.trim()
+  return items.flatMap((item) => {
+    const details = getFirstStringData(item)
+    const username = details?.value?.trim() || item.title?.trim()
 
     return username ? [createAccount(username, details)] : []
   })
